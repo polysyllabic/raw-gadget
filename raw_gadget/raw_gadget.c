@@ -312,13 +312,15 @@ static int gadget_bind(struct usb_gadget *gadget,
 	dev->eps_num = i;
 	spin_unlock_irqrestore(&dev->lock, flags);
 
+	ret = raw_queue_event(dev, USB_RAW_EVENT_CONNECT, 0, NULL);
+	if (ret < 0) {
+		dev_err(&gadget->dev, "failed to queue event\n");
+    set_gadget_data(gadget, NULL);
+    return ret;
+  }
+
 	/* Matches kref_put() in gadget_unbind(). */
 	kref_get(&dev->count);
-
-	ret = raw_queue_event(dev, USB_RAW_EVENT_CONNECT, 0, NULL);
-	if (ret < 0)
-		dev_err(&gadget->dev, "failed to queue event\n");
-
 	return ret;
 }
 
@@ -545,12 +547,12 @@ static int raw_ioctl_run(struct raw_dev *dev, unsigned long value)
 	dev->state = STATE_DEV_REGISTERING;
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	ret = usb_gadget_probe_driver(&dev->driver);
+	ret = usb_gadget_register_driver(&dev->driver);
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (ret) {
 		dev_err(dev->dev,
-			"fail, usb_gadget_probe_driver returned %d\n", ret);
+			"fail, usb_gadget_register_driver returned %d\n", ret);
 		dev->state = STATE_DEV_FAILED;
 		goto out_unlock;
 	}
@@ -1079,8 +1081,6 @@ static int raw_process_ep_io(struct raw_dev *dev, struct usb_raw_ep_io *io,
 		ret = -ETIMEDOUT;
 		goto out_done;
 	} else if (ret < 0) {
-//		ret = wait_for_completion_interruptible(&done);
-//	if(ret) {
 		dev_dbg(&dev->gadget->dev, "wait interrupted\n");
 		usb_ep_dequeue(ep->ep, ep->req);
 		wait_for_completion(&done);
@@ -1256,10 +1256,6 @@ static long raw_ioctl(struct file *fd, unsigned int cmd, unsigned long value)
 	if (!dev)
 		return -EBUSY;
 	
-//	if((fd->f_flags & O_NONBLOCK) &&
-//	   spin_is_locked(&dev->lock))
-//		return -EBUSY;
-
 	switch (cmd) {
 	case USB_RAW_IOCTL_INIT:
 		ret = raw_ioctl_init(dev, value);
