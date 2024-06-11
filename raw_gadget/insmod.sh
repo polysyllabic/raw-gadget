@@ -4,4 +4,4 @@
 set -eux
 
 sudo modprobe udc_core
-sudo insmod ./raw_gadget.ko
+sudo insmod /usr/local/modules/raw_gadget.ko
