@@ -14,3 +14,4 @@ examples/printer
 tests/gadget
 tests/testusb
 .vscode/c_cpp_properties.json
+.vscode/settings.json
