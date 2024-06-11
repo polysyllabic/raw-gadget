@@ -1127,7 +1127,7 @@ static int raw_process_ep_io(struct raw_dev *dev, struct usb_raw_ep_io *io,
 		wait_for_completion(&done);
 		spin_lock_irqsave(&dev->lock, flags);
 		ret = -ETIMEDOUT;
-		goto out_done;
+		goto out_queue_failed;
 	} else if (ret < 0) {
 		dev_dbg(&dev->gadget->dev, "wait interrupted\n");
 		usb_ep_dequeue(ep->ep, ep->req);
