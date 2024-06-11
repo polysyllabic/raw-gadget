@@ -13,3 +13,4 @@ examples/keyboard
 examples/printer
 tests/gadget
 tests/testusb
+.vscode/c_cpp_properties.json
