@@ -45,11 +45,11 @@ Running the tests:
 
 * USB 3 Streams tests (not implemented in kernel yet).
 
-* Run www.usb.org USBCV tests (see [linux-usb.org](http://www.linux-usb.org/usbtest/) for details).
+* Run USBCV tests (see [linux-usb.org](http://www.linux-usb.org/usbtest/) for details).
 
 * Figure out a way to properly test endpoint halts (`usbtest` #13 is fully handled by UDC drivers).
 
-* Figure out a way to test suspend/resume (not implemented in kernel yet).
+* Figure out a way to test suspend/resume.
 
 ## Results
 
@@ -228,6 +228,33 @@ Running the tests:
 | test 7: bulk, queued, OUT, varied |  |  | OK |
 | test 8: bulk, queued, IN, varied | EOVERFLOW | EOVERFLOW | OK |
 | test 9: control, non-queued, sanity |  | EPIPE | OK |
+| test 10: control, queued |  |  | OK |
+| test 11: bulk, non-queued, unlinks, IN |  |  | OK |
+| test 12: bulk, non-queued, unlinks, OUT |  |  | OK |
+| test 13: bulk, ep halt set/clear |  |  | OK |
+| test 14: control, OUT, varied |  |  | OK |
+| test 17: bulk, DMA, odd address, OUT |  |  | OK |
+| test 18: bulk, DMA, odd address, IN |  |  | OK |
+| test 19: bulk, coherent, odd address, OUT |  |  | OK |
+| test 20: bulk, coherent, odd address, IN |  |  | OK |
+| test 21: control, unaligned, OUT, varied |  |  | OK |
+| test 24: bulk, queued, unlink, OUT |  |  | OK |
+| test 25: interrupt, non-queued, OUT |  | ENOTSUP | OK |
+| test 26: interrupt, non-queued, IN |  | ENOTSUP | OK |
+
+### Thinkpad X1 Carbon Gen 6
+
+| Test | `raw_gadget` | `g_zero` | Status |
+| :--- | :---: | :---: | :---: |
+| test 1: bulk, non-queued, OUT |  |  | OK |
+| test 2: bulk, non-queued, IN |  |  | OK |
+| test 3: bulk, non-queued, OUT, varied |  |  | OK |
+| test 4: bulk, non-queued, IN, varied | EOVERFLOW | EOVERFLOW | OK |
+| test 5: bulk, queued, OUT |  |  | OK |
+| test 6: bulk, queued, IN |  |  | OK |
+| test 7: bulk, queued, OUT, varied |  |  | OK |
+| test 8: bulk, queued, IN, varied | EOVERFLOW | EOVERFLOW | OK |
+| test 9: control, non-queued, sanity |  |  | OK |
 | test 10: control, queued |  |  | OK |
 | test 11: bulk, non-queued, unlinks, IN |  |  | OK |
 | test 12: bulk, non-queued, unlinks, OUT |  |  | OK |

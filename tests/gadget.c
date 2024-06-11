@@ -37,9 +37,13 @@ struct usb_raw_init {
 };
 
 enum usb_raw_event_type {
-	USB_RAW_EVENT_INVALID,
-	USB_RAW_EVENT_CONNECT,
-	USB_RAW_EVENT_CONTROL,
+	USB_RAW_EVENT_INVALID = 0,
+	USB_RAW_EVENT_CONNECT = 1,
+	USB_RAW_EVENT_CONTROL = 2,
+	USB_RAW_EVENT_SUSPEND = 3,
+	USB_RAW_EVENT_RESUME = 4,
+	USB_RAW_EVENT_RESET = 5,
+	USB_RAW_EVENT_DISCONNECT = 6,
 };
 
 struct usb_raw_event {
@@ -172,7 +176,7 @@ int usb_raw_ep_enable(int fd, struct usb_endpoint_descriptor *desc) {
 int usb_raw_ep_read(int fd, struct usb_raw_ep_io *io) {
 	int rv = ioctl(fd, USB_RAW_IOCTL_EP_READ, io);
 	if (rv < 0) {
-		if (errno == EINPROGRESS) {
+		if (errno == EINPROGRESS || errno == EPIPE) {
 			// Ignore failures caused by the test that halts endpoints.
 			return rv;
 		}
@@ -185,7 +189,7 @@ int usb_raw_ep_read(int fd, struct usb_raw_ep_io *io) {
 int usb_raw_ep_write(int fd, struct usb_raw_ep_io *io) {
 	int rv = ioctl(fd, USB_RAW_IOCTL_EP_WRITE, io);
 	if (rv < 0) {
-		if (errno == EINPROGRESS) {
+		if (errno == EINPROGRESS || errno == EPIPE) {
 			// Ignore failures caused by the test that halts endpoints.
 			return rv;
 		}
@@ -375,6 +379,18 @@ void log_event(struct usb_raw_event *event) {
 	case USB_RAW_EVENT_CONTROL:
 		printf("event: control, length: %u\n", event->length);
 		log_control_request((struct usb_ctrlrequest *)&event->data[0]);
+		break;
+	case USB_RAW_EVENT_SUSPEND:
+		printf("event: suspend");
+		break;
+	case USB_RAW_EVENT_RESUME:
+		printf("event: resume");
+		break;
+	case USB_RAW_EVENT_RESET:
+		printf("event: reset");
+		break;
+	case USB_RAW_EVENT_DISCONNECT:
+		printf("event: disconnect");
 		break;
 	default:
 		printf("event: %d (unknown), length: %u\n", event->type, event->length);
@@ -580,6 +596,8 @@ bool assign_ep_address(struct usb_raw_ep_info *info,
 	if (usb_endpoint_dir_in(ep) && !info->caps.dir_in)
 		return false;
 	if (usb_endpoint_dir_out(ep) && !info->caps.dir_out)
+		return false;
+	if (usb_endpoint_maxp(ep) > info->limits.maxpacket_limit)
 		return false;
 	switch (usb_endpoint_type(ep)) {
 	case USB_ENDPOINT_XFER_BULK:
@@ -917,10 +935,8 @@ void ep0_loop(int fd) {
 			continue;
 		}
 
-		if (event.inner.type != USB_RAW_EVENT_CONTROL) {
-			printf("fail: unknown event\n");
-			exit(EXIT_FAILURE);
-		}
+		if (event.inner.type != USB_RAW_EVENT_CONTROL)
+			continue;
 
 		struct usb_raw_control_io io;
 		io.inner.ep = 0;

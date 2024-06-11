@@ -1,9 +1,8 @@
 Raw Gadget
 ==========
 
-__Note__: Raw Gadget is a debugging feature, and it should not be used in production. Use GadgetFS instead. See the differences [here](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/Documentation/usb/raw-gadget.rst).
-
 [Raw Gadget](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/Documentation/usb/raw-gadget.rst) is a Linux kernel module that implements a low-level interface for the Linux USB Gadget subsystem.
+It is similar to GadgetFS, but provides greater flexibility; see all the differences [here](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/Documentation/usb/raw-gadget.rst).
 
 Raw Gadget can be used to emulate USB devices, both physical and virtual ones.
 Emulating physical devices requires a Linux board with a [USB Device Controller](/README.md#usb-device-controllers) (UDC), such as a Raspberry Pi.
@@ -17,9 +16,29 @@ The modules should be compatible with kernel versions down to `4.14`; see the ta
 
 Building the Raw Gadget and Dummy HCD/UDC kernel modules requires kernel headers.
 On desktop Ubuntu, you can get them by installing `` linux-headers-`uname -r` ``.
-On a Raspberry Pi, follow [these instructions](https://github.com/notro/rpi-source/wiki).
+On a Raspberry Pi, follow [these instructions](https://github.com/RPi-Distro/rpi-source).
 
 See the [Fuzzing USB with Raw Gadget](https://docs.google.com/presentation/d/1sArf2cN5tAOaovlaL3KBPNDjYOk8P6tRrzfkclsbO_c/edit?usp=sharing) talk [[video](https://www.youtube.com/watch?v=AT3PQjKxa_c)] for details about Linux Host and Gadget USB subsystems and Raw Gadget.
+
+__Note__:
+Do not use Raw Gadget in production for emulating USB devices with concrete classes.
+Instead, use the [composite framework](https://docs.kernel.org/usb/gadget_configfs.html) or the [legacy gadget driver modules](https://elixir.bootlin.com/linux/latest/source/drivers/usb/gadget/legacy).
+Raw Gadget is intended for fuzzing and exploiting USB hosts or for proxying USB devices.
+
+
+## Limitations
+
+While Raw Gadget does support emulating a wide range of USB device types, it has a set of known limitations.
+
+Most notably, there is:
+
+- No support for isochronous transfers (see https://github.com/xairy/raw-gadget/issues/60);
+- No support for USB 3 SuperSpeed device emulation (see https://github.com/xairy/raw-gadget/issues/61);
+
+Both of these are not foundational limitations of the technology but rather just features missing from the implementation.
+They might addressed in the future.
+
+Also see [TODOs](#todo) for a list of other more minor missing features.
 
 
 ## USB Device Controllers
@@ -52,8 +71,9 @@ Below is a table of UDCs that were tested with Raw Gadget.
 | Orange Pi PC | `5.10.60` | `musb-hdrc` | `musb-hdrc.4.auto` | [Yes](/tests#orange-pi-pc) |
 | Orange Pi PC 2 | `5.10.60` | `musb-hdrc` | `musb-hdrc.4.auto` | [Yes](/tests#orange-pi-pc-2) |
 | Khadas VIM1 | `5.10.60-meson64` | `c9100000.usb` | `c9100000.usb` | [Yes](/tests#khadas-vim1) |
+| [ThinkPad X1 Carbon Gen 6](https://xairy.io/articles/thinkpad-xdci) | `5.15.0-107-generic` | `dwc3-gadget` | `dwc3.1.auto` | [Yes](/tests#thinkpad-x1-carbon-gen-6) |
 | BeagleBone Black | `4.19.94-ti-r42` | `musb-hdrc` | `musb-hdrc.0` | Probably |
-| BeagleBone AI | `4.14.108-ti-r131` | `48890000.usb` | `dwc3-gadget` | Not yet |
+| BeagleBone AI | `4.14.108-ti-r131` | `dwc3-gadget` | `48890000.usb` | Probably |
 | [EC3380-AB](http://www.hwtools.net/Adapter/EC3380-AB.html) | `5.3.0-45-generic` | `net2280` | `0000:04:00.0` (e.g.) | Partially,<br />`net2280` buggy |
 | Odroid C2 | `3.14.79-116` | `dwc_otg_pcd` | `dwc2_a` | No, kernel too old |
 
@@ -92,9 +112,10 @@ In turn, `legacy-applets/facedancer-umass.py` requires `RG_USB_SPEED=2`.
 Note: This backend is still a prototype.
 Outstanding tasks:
 
-1. Make sure that all required backend callbacks are implemented. For example, `read_from_endpoint` should probably be implemented.
-2. Provide a common [Python wrapper](#1) for Raw Gadget ioctls, and use it in the backend.
-3. Finalize and submit out-of-tree Raw Gadget patches to the mainline.
+1. Rebase the backend onto [Facedancer 3.0 release](https://github.com/greatscottgadgets/facedancer/issues/79).
+2. Make sure that all [required backend callbacks](https://github.com/greatscottgadgets/facedancer/issues/48) are implemented. For example, `read_from_endpoint` should probably be implemented.
+3. Provide a common [Python wrapper](https://github.com/xairy/raw-gadget/issues/1) for Raw Gadget ioctls, and use it in the backend.
+4. Finalize and submit out-of-tree Raw Gadget patches to the mainline.
 
 Note: Facedancer assumes that every backend supports non-blocking I/O, which is not the case for Raw Gadget.
 To work around this limitation, the backend prototype relies on timeouts.
@@ -103,21 +124,21 @@ The proper solution to this issue would be to add non-blocking I/O support to Ra
 
 ## Troubleshooting
 
-As generic guidance to troubleshooting Raw Gadget errors:
+As a generic guidance to troubleshooting Raw Gadget errors:
 
 1. Switch to the [dev branch](https://github.com/xairy/raw-gadget/tree/dev).
 
-    This branch contains fixes for some known issues and prints more debug output.
+    This branch might contain fixes for some known issues.
 
 2. Enable debug output for Raw Gadget (and Dummy HCD/UDC if you're using it).
 
-    Add the following line to the very beginning of `raw_gadget/raw_gadget.c`:
+    To do this, add the following line to the very beginning of `raw_gadget/raw_gadget.c`:
 
     ``` c
     #define DEBUG
     ```
 
-    Rebuild and reinsert the module.
+    Then rebuild and reinsert the module.
 
 3. Check the kernel log via `dmesg` to figure out what is failing.
 
@@ -143,15 +164,18 @@ Endpoint operations return `ESHUTDOWN`, error code `108`:
 ioctl(USB_RAW_IOCTL_EP0_WRITE): Cannot send after transport endpoint shutdown
 ```
 
-This error likely means that the emulated USB device did something wrong.
-For example, tried to perform an endpoint operation before the device is configured.
-Or provided an endpoint descriptor that does not match the USB device speed.
-As a result, either the UDC driver or the host decided to disconnect the device.
+This error means that the emulated USB device tried to perform a read or write operation on a disabled endpoint.
+This error is usually observed when the host decides to reset the device during its operation, following which the UDC driver disables all enabled endpoints.
 
-Note: During device operation, the host might decide to reconfigure the device.
-The UDC driver will then issue a reset or a disconnect event (depends on which UDC driver is in use).
-After this, endpoint operations will fail with `ESHUTDOWN` until the device emulation code calls `USB_RAW_IOCTL_CONFIGURE` again when handling a new `SET_CONFIGURATION` request.
-Getting notifications about the reset and disconnect events requires using the Raw Gadget patches from the [dev branch](https://github.com/xairy/raw-gadget/tree/dev).
+Often, a reset happens when the device emulation code does something wrong.
+For example, provides a bad USB descriptor that is either malformed or inconsistent with the emulated device speed or other parameters.
+As a result, either the UDC driver or the host resets or disconnects the device.
+
+However, a reset can happen during the normal device operation.
+For example, the host might decide to reconfigure the device and thus will reset it.
+The UDC driver will then deactivate all endpoints and any attempt to perform an endpoint operation will fail with `ESHUTDOWN`.
+When this happens, Raw Gadget will issue a `USB_RAW_EVENT_RESET` event (or `USB_RAW_EVENT_DISCONNECT` [for](https://github.com/xairy/raw-gadget/issues/48) `dwc2`).
+The device emulation code needs to gracefully handle `ESHUTDOWN`, disable all Raw Gadget endpoints when hanlding the `USB_RAW_EVENT_RESET` event, restart enumeration, and reenable the endpoints when handling a new `SET_CONFIGURATION` request.
 
 
 ## Projects based on Raw Gadget
@@ -164,16 +188,9 @@ Getting notifications about the reset and disconnect events requires using the R
 
 ## TODO
 
+* [GitHub issues](https://github.com/xairy/raw-gadget/issues)
 * [TODOs in kernel documentation](https://elixir.bootlin.com/linux/v5.7/source/Documentation/usb/raw-gadget.rst#L74)
 * [TODOs in Raw Gadget test suite](/tests#todo)
-* [GitHub issues](https://github.com/xairy/raw-gadget/issues)
-
-Other potential fixes/improvements to investigate:
-
-* Set `ep->maxburst`, `ep->mult` and `ep->maxpacket` in gadget drivers.
-* OTG support.
-* Set `ep->dev` on `ep` allocation.
-* Don't pass `ep0_status` and `ep_status` through `dev`, get from `req` instead.
 
 
 ## License
